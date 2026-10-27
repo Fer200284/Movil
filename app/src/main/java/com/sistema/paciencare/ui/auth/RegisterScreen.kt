@@ -67,7 +67,9 @@ fun RegisterScreen(authViewModel: AuthViewModel, role: String, onBack: () -> Uni
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
-                        fechaNac = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(it))
+                        fechaNac = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+                            timeZone = TimeZone.getTimeZone("UTC")
+                        }.format(Date(it))
                     }
                     showDatePicker = false
                 }) { Text("Aceptar") }
@@ -263,19 +265,48 @@ fun RegisterScreen(authViewModel: AuthViewModel, role: String, onBack: () -> Uni
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Sexo", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
                             Spacer(modifier = Modifier.height(4.dp))
-                            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                            Box(modifier = Modifier.fillMaxWidth()) {
                                 OutlinedTextField(
-                                    value = selectedSexo, onValueChange = {}, readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).height(54.dp), shape = RoundedCornerShape(14.dp),
-                                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                                    value = selectedSexo,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = if (expanded) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
+                                            contentDescription = null,
+                                            tint = colorPrimary,
+                                            modifier = Modifier.clickable { expanded = !expanded }
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(54.dp)
+                                        .clickable { expanded = !expanded },
+                                    enabled = false,
+                                    shape = RoundedCornerShape(14.dp),
+                                    textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = Color(0xFF1E293B)),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        unfocusedBorderColor = if (showErrors && selectedSexo == "Seleccionar") Color.Red else Color(0xFFE2E8F0),
-                                        focusedBorderColor = colorPrimary
+                                        disabledBorderColor = if (showErrors && selectedSexo == "Seleccionar") Color.Red else Color(0xFFE2E8F0),
+                                        disabledTextColor = Color(0xFF1E293B),
+                                        disabledContainerColor = Color.White
                                     )
                                 )
-                                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                    sexos.forEach { item -> DropdownMenuItem(text = { Text(item, fontSize = 14.sp) }, onClick = { selectedSexo = item; expanded = false; errorMessage = null }) }
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    modifier = Modifier
+                                        .background(Color.White, RoundedCornerShape(14.dp))
+                                ) {
+                                    sexos.forEach { item ->
+                                        DropdownMenuItem(
+                                            text = { Text(item, fontSize = 14.sp, color = Color(0xFF1E293B)) },
+                                            onClick = {
+                                                selectedSexo = item
+                                                expanded = false
+                                                errorMessage = null
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

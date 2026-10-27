@@ -73,8 +73,12 @@ class AuthViewModel(
             val rawBirth = user.birthDate.trim()
             val formattedBirth = try {
                 if (rawBirth.contains("/")) {
-                    val sdfSlash = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
-                    val sdfIso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    val sdfSlash = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).apply {
+                        timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    }
+                    val sdfIso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).apply {
+                        timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    }
                     val parsed = sdfSlash.parse(rawBirth)
                     if (parsed != null) sdfIso.format(parsed) else rawBirth
                 } else rawBirth
@@ -82,14 +86,17 @@ class AuthViewModel(
                 rawBirth
             }
 
+            val cleanCedula = user.cedula.replace("-", "").replace(" ", "").trim().uppercase()
+            val cleanPhone = user.phone.replace("+505", "").replace("+", "").replace("-", "").replace(" ", "").trim()
+
             val request = RegisterUserRequest(
                 username = cleanEmail,
                 nombreCompleto = user.name.trim().ifBlank { null },
                 firstName = firstName,
                 lastName = lastName,
-                cedula = user.cedula.ifBlank { null },
+                cedula = cleanCedula.ifBlank { null },
                 fechaDeNacimiento = formattedBirth.ifBlank { null },
-                celular = user.phone.ifBlank { null },
+                celular = cleanPhone.ifBlank { null },
                 email = cleanEmail,
                 password = cleanPassword,
                 rol = user.role,
