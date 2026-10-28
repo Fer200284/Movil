@@ -12,6 +12,7 @@ import com.sistema.paciencare.data.remote.dto.RegisteredUserDto
 import com.sistema.paciencare.data.remote.dto.TokenResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
@@ -279,4 +280,36 @@ interface PacienCareApiService {
         @Header("Authorization") authHeader: String,
         @Query("paciente") pacienteId: Int? = null
     ): Response<List<ExamDto>>
+
+    // --- ANALYTICS / MONGODB FACT TABLE ---
+
+    @POST("analytics/encuestas/")
+    suspend fun postAnalyticsEncuesta(
+        @Header("Authorization") authHeader: String,
+        @Body request: com.sistema.paciencare.data.remote.dto.AnalyticsEncuestaRequest
+    ): Response<Map<String, Any>>
+
+    @GET("analytics/encuestas/")
+    suspend fun getAnalyticsEncuestas(
+        @Header("Authorization") authHeader: String
+    ): Response<List<com.sistema.paciencare.data.remote.dto.AnalyticsEncuestaResponse>>
+
+    @GET("analytics/encuestas/{id}/")
+    suspend fun getAnalyticsEncuestaById(
+        @Header("Authorization") authHeader: String,
+        @Path("id") mongoId: String
+    ): Response<com.sistema.paciencare.data.remote.dto.AnalyticsEncuestaResponse>
+
+    @PATCH("analytics/encuestas/{id}/")
+    suspend fun patchAnalyticsEncuesta(
+        @Header("Authorization") authHeader: String,
+        @Path("id") mongoId: String,
+        @Body request: Map<String, @JvmSuppressWildcards Any>
+    ): Response<com.sistema.paciencare.data.remote.dto.AnalyticsEncuestaResponse>
+
+    @DELETE("analytics/encuestas/{id}/")
+    suspend fun deleteAnalyticsEncuesta(
+        @Header("Authorization") authHeader: String,
+        @Path("id") mongoId: String
+    ): Response<Unit>
 }

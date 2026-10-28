@@ -391,4 +391,46 @@ class RemoteDataSource(
             Result.failure(e) 
         }
     }
+
+    suspend fun postAnalyticsEncuesta(
+        token: String,
+        request: com.sistema.paciencare.data.remote.dto.AnalyticsEncuestaRequest
+    ): Result<Boolean> {
+        return try {
+            val res = apiService.postAnalyticsEncuesta("Bearer $token", request)
+            if (res.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAnalyticsEncuestas(token: String): Result<List<com.sistema.paciencare.data.remote.dto.AnalyticsEncuestaResponse>> {
+        return try {
+            val res = apiService.getAnalyticsEncuestas("Bearer $token")
+            if (res.isSuccessful && res.body() != null) {
+                Result.success(res.body()!!)
+            } else {
+                Result.failure(Exception("HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteAnalyticsEncuesta(token: String, mongoId: String): Result<Boolean> {
+        return try {
+            val res = apiService.deleteAnalyticsEncuesta("Bearer $token", mongoId)
+            if (res.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

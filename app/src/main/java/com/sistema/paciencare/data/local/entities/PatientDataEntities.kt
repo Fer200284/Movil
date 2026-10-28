@@ -50,5 +50,6 @@ data class EvaluationEntity(
     val rating5: Int,
     val overallRating: Float,
     val comments: String,
-    val date: String
+    val date: String,
+    val mongoId: String = ""
 )

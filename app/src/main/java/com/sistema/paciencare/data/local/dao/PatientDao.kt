@@ -111,6 +111,9 @@ interface PatientDao {
     @Delete
     suspend fun deleteEvaluation(evaluation: EvaluationEntity)
 
+    @Query("DELETE FROM evaluations WHERE LOWER(userEmail) = LOWER(:email)")
+    suspend fun clearEvaluationsForUser(email: String)
+
     @Query("DELETE FROM evaluations")
     suspend fun clearAllEvaluations()
 }

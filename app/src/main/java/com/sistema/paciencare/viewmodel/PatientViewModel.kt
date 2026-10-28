@@ -565,9 +565,48 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
                             }
                         }
 
+                        repository.clearMedicationsForUser(activeEmail)
                         if (medsToInsert.isNotEmpty()) {
-                            repository.clearMedicationsForUser(activeEmail)
                             medsToInsert.forEach { repository.insertMedication(it) }
+                        }
+
+                        // 4. Sincronizar Encuestas desde MongoDB
+                        val mongoEncuestasResult = repository.getRemoteDataSource().getAnalyticsEncuestas(token)
+                        mongoEncuestasResult.onSuccess { dtoList ->
+                            repository.clearEvaluationsForUser(activeEmail)
+                            val deletedEvalIds = repository.getSessionManager().getDeletedEvaluationIds(activeEmail)
+                            dtoList.forEachIndexed { index, dto ->
+                                val mongoId = dto.id ?: ""
+                                if (mongoId.isNotBlank() && mongoId !in deletedEvalIds) {
+                                    val r1 = dto.scoreAtencionMedica ?: dto.puntuacionGeneral ?: 5
+                                    val r2 = when (dto.tiempoEsperaMinutos) {
+                                        5 -> 5
+                                        15 -> 4
+                                        30 -> 3
+                                        45 -> 2
+                                        else -> 3
+                                    }
+                                    val r3 = dto.scoreTratoPersonal ?: 5
+                                    val r4 = dto.scoreConsultaDoctor ?: 5
+                                    val r5 = if (dto.resolucionDudasVal == 1) 5 else 3
+                                    val avg = (dto.puntuacionGeneral ?: 5).toFloat()
+
+                                    val evalEntity = EvaluationEntity(
+                                        id = dto.idEncuesta ?: (index + 10000),
+                                        userEmail = activeEmail,
+                                        rating1 = r1,
+                                        rating2 = r2,
+                                        rating3 = r3,
+                                        rating4 = r4,
+                                        rating5 = r5,
+                                        overallRating = avg,
+                                        comments = dto.comentarios ?: "",
+                                        date = dto.idFecha ?: "",
+                                        mongoId = mongoId
+                                    )
+                                    repository.insertEvaluation(evalEntity)
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -738,10 +777,109 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
         repository.insertEvaluation(entity)
     }
 
+    fun sendAnalyticsSurvey(
+        r1: Int,
+        r2: Int,
+        r3: Int,
+        r4: Int,
+        r5: Int,
+        comments: String = "",
+        selectedMillis: Long? = null,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) = viewModelScope.launch {
+        val token = repository.getSessionManager().getAccessToken()
+        if (token.isNullOrBlank()) {
+            onComplete?.invoke(false)
+            return@launch
+        }
+
+        try {
+            val userId = JwtUtils.getUserIdFromToken(token) ?: 0
+            val remoteDS = repository.getRemoteDataSource()
+
+            val pacientesList = remoteDS.getPacienteDelUsuario(userId, token).getOrNull() ?: emptyList()
+            val pacienteObj = pacientesList.firstOrNull()
+            val pacienteId = pacienteObj?.id ?: userId
+
+            val atencionesList = remoteDS.getAllAtencionesCronicasExact(token).getOrNull() ?: emptyList()
+            val myAtencion = atencionesList.find { it.matchesPacienteOrUser(pacienteId, userId) }
+            val patologiaId = myAtencion?.idPacientePatologia ?: myAtencion?.pacienteIdDeep ?: 1
+
+            val dateMillis = selectedMillis ?: System.currentTimeMillis()
+            val sdfIsoDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            val formattedDateStr = sdfIsoDate.format(java.util.Date(dateMillis))
+
+            val overallAvg = kotlin.math.round((r1 + r2 + r3 + r4 + r5) / 5.0f).toInt().coerceIn(1, 5)
+
+            val waitingMinutes = when (r2) {
+                5 -> 5
+                4 -> 15
+                3 -> 30
+                2 -> 45
+                else -> 60
+            }
+
+            val request = com.sistema.paciencare.data.remote.dto.AnalyticsEncuestaRequest(
+                idEncuesta = (System.currentTimeMillis() % 1000000).toInt(),
+                idFecha = formattedDateStr,
+                idPaciente = pacienteId,
+                idPatologia = patologiaId,
+                puntuacionGeneral = overallAvg,
+                scoreAtencionMedica = r1,
+                tiempoEsperaMinutos = waitingMinutes,
+                scoreTratoPersonal = r3,
+                scoreConsultaDoctor = r4,
+                resolucionDudasVal = if (r5 >= 4) 1 else 0,
+                comentarios = comments.trim().ifBlank { null },
+                comentario = comments.trim().ifBlank { null }
+            )
+
+            val result = remoteDS.postAnalyticsEncuesta(token, request)
+            if (result.isSuccess) {
+                val activeEmail = _currentUserEmail.value
+                if (activeEmail.isNotBlank()) {
+                    val sdfDateDisplay = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).apply {
+                        timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    }
+                    val displayDateStr = sdfDateDisplay.format(java.util.Date(dateMillis))
+                    val evalEntity = EvaluationEntity(
+                        userEmail = activeEmail,
+                        rating1 = r1,
+                        rating2 = r2,
+                        rating3 = r3,
+                        rating4 = r4,
+                        rating5 = r5,
+                        overallRating = (r1 + r2 + r3 + r4 + r5) / 5.0f,
+                        comments = comments.trim(),
+                        date = displayDateStr,
+                        mongoId = (System.currentTimeMillis() % 1000000).toString()
+                    )
+                    repository.insertEvaluation(evalEntity)
+                }
+                onComplete?.invoke(true)
+            } else {
+                onComplete?.invoke(false)
+            }
+        } catch (e: Exception) {
+            Log.e("PACI_DEBUG", "Error sending analytics survey: ${e.message}", e)
+            onComplete?.invoke(false)
+        }
+    }
+
     fun deleteEvaluation(evaluation: EvaluationEntity) = viewModelScope.launch {
         val email = _currentUserEmail.value.ifBlank { evaluation.userEmail }
         if (email.isNotBlank()) {
-            repository.getSessionManager().addDeletedEvaluationId(email, evaluation.id.toString())
+            val evalKey = if (evaluation.mongoId.isNotBlank()) evaluation.mongoId else evaluation.id.toString()
+            repository.getSessionManager().addDeletedEvaluationId(email, evalKey)
+
+            if (evaluation.mongoId.isNotBlank()) {
+                val token = repository.getSessionManager().getAccessToken()
+                if (!token.isNullOrBlank()) {
+                    repository.getRemoteDataSource().deleteAnalyticsEncuesta(token, evaluation.mongoId)
+                }
+            }
         }
         repository.deleteEvaluation(evaluation)
     }
@@ -770,137 +908,14 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
     val managerPatientsCount: StateFlow<Int> = _managerPatientsCount.asStateFlow()
 
     private val _managerEvaluations = MutableStateFlow<List<EvaluationEntity>>(emptyList())
-    val globalAllEvaluations: StateFlow<List<EvaluationEntity>> = repository.allEvaluations
-        .combine(_managerEvaluations) { local, remote -> (remote + local).distinctBy { "${it.userEmail}_${it.date}_${it.overallRating}_${it.comments}" } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val globalAllEvaluations: StateFlow<List<EvaluationEntity>> = _managerEvaluations.asStateFlow()
 
     fun syncManagerData() {
-        val token = repository.getSessionManager().getAccessToken()
-        if (!token.isNullOrBlank()) {
-            viewModelScope.launch {
-                try {
-                    val remoteDS = repository.getRemoteDataSource()
-
-                    val medicosCatalog: List<MedicoDto>
-                    val allPatientsList: List<PacienteDto>
-                    val atencionesResult: Result<List<AtencionCronicoDto>>
-                    val catalogMeds: List<MedicamentoCatalogDto>
-                    val directMeds: List<MedicamentoAtencionDto>
-                    val tratamientosResult: Result<List<TratamientoDto>>
-                    val resultadosResult: Result<List<ResultadoExamenDto>>
-                    val catalogExams: List<ExamenLaboratorioDto>
-
-                    coroutineScope {
-                        val defMedicos = async(Dispatchers.IO) { remoteDS.getMedicosExact(token) }
-                        val defPacientes = async(Dispatchers.IO) { remoteDS.getPacienteDelUsuario(0, token) }
-                        val defAtenciones = async(Dispatchers.IO) { remoteDS.getAllAtencionesCronicasExact(token) }
-                        val defCatalogMeds = async(Dispatchers.IO) { remoteDS.getMedicamentosCatalogExact(token) }
-                        val defDirectMeds = async(Dispatchers.IO) { remoteDS.getMedicamentos(token, 1) }
-                        val defTratamientos = async(Dispatchers.IO) { remoteDS.getTratamientosExact(token) }
-                        val defResultados = async(Dispatchers.IO) { remoteDS.getResultadosExamenesExact(token) }
-                        val defCatalogExams = async(Dispatchers.IO) { remoteDS.getExamenesLaboratorioCatalogExact(token) }
-
-                        medicosCatalog = defMedicos.await().getOrNull() ?: emptyList()
-                        allPatientsList = defPacientes.await().getOrNull() ?: emptyList()
-                        atencionesResult = defAtenciones.await()
-                        catalogMeds = defCatalogMeds.await().getOrNull() ?: emptyList()
-                        directMeds = defDirectMeds.await().getOrNull() ?: emptyList()
-                        tratamientosResult = defTratamientos.await()
-                        resultadosResult = defResultados.await()
-                        catalogExams = defCatalogExams.await().getOrNull() ?: emptyList()
-                    }
-
-                    val defaultDoctorName = medicosCatalog.firstOrNull()?.getFullName() ?: ""
-                    _managerPatientsCount.value = allPatientsList.size
-
-                    // 2. Descargar Citas globales
-                    atencionesResult.onSuccess { atencionesList ->
-                        val appts = atencionesList.mapNotNull { atencion ->
-                            val dateStr = atencion.fechaProximaCita?.ifBlank { null }
-                                ?: atencion.fechaAtencion?.ifBlank { null }
-                            if (!dateStr.isNullOrBlank()) {
-                                val medicoObj = atencion.idMedicoInt?.let { mId -> medicosCatalog.find { it.id == mId } }
-                                val docName = atencion.doctorName ?: medicoObj?.getFullName() ?: defaultDoctorName
-
-                                val statusStr = when {
-                                    atencion.asistio?.startsWith("S", ignoreCase = true) == true || atencion.asistio?.startsWith("Y", ignoreCase = true) == true || atencion.asistio?.startsWith("T", ignoreCase = true) == true || atencion.asistio?.equals("1") == true -> "Realizada"
-                                    atencion.asistio?.startsWith("C", ignoreCase = true) == true -> "Cancelada"
-                                    else -> "Pendiente"
-                                }
-
-                                AppointmentEntity(
-                                    id = atencion.id,
-                                    userEmail = "clinica_global",
-                                    date = dateStr,
-                                    time = "08:00 AM",
-                                    doctor = docName,
-                                    reason = atencion.observaciones?.ifBlank { null } ?: "Consulta Médica",
-                                    status = statusStr
-                                )
-                            } else null
-                        }
-                        _managerAppointments.value = appts.distinctBy { it.id }
-                    }
-
-                    // 3. Descargar Fármacos
-                    val cleanMedsList = if (catalogMeds.isNotEmpty()) {
-                        catalogMeds.mapIndexed { idx, m ->
-                            MedicationEntity(
-                                id = m.id ?: (idx + 1),
-                                userEmail = "clinica_global",
-                                name = m.nombreMedicamento ?: "Medicamento",
-                                dose = m.concentracion ?: "Dosis Indicada",
-                                frequency = m.presentacion ?: "1 vez al día",
-                                duration = "Disponible",
-                                doctor = defaultDoctorName,
-                                status = "Activo"
-                            )
-                        }
-                    } else {
-                        directMeds.mapIndexed { idx, m ->
-                            MedicationEntity(
-                                id = m.id ?: (idx + 1),
-                                userEmail = "clinica_global",
-                                name = m.nombre ?: "Medicamento",
-                                dose = m.presentacion ?: "Dosis Indicada",
-                                frequency = m.forma ?: "1 vez al día",
-                                duration = "Disponible",
-                                doctor = defaultDoctorName,
-                                status = "Activo"
-                            )
-                        }
-                    }
-                    _managerMedications.value = cleanMedsList.distinctBy { it.name }
-
-                    // 3B. Descargar Tratamientos
-                    tratamientosResult.onSuccess { tratamientosList ->
-                        _managerTreatmentsCount.value = tratamientosList.size
-                    }
-
-                    // 4. Descargar Exámenes globales
-                    resultadosResult.onSuccess { resultadosList ->
-                        val exams = resultadosList.mapIndexed { index, resultado ->
-                            val catalogExam = catalogExams.find { it.id == resultado.idSolicitudExamen }
-                            val examName = catalogExam?.nombreExamen ?: "Examen de Laboratorio"
-                            ExamEntity(
-                                id = resultado.id ?: (index + 1),
-                                userEmail = "clinica_global",
-                                name = examName,
-                                doctor = "Laboratorio Clínico",
-                                date = resultado.fechaResultado?.take(10) ?: "",
-                                time = "08:00 AM",
-                                indications = "",
-                                status = resultado.interpretacion ?: "Completado",
-                                statusColor = Color.parseColor("#10B981")
-                            )
-                        }
-                        _managerExams.value = exams.distinctBy { it.id }
-                    }
-                } catch (e: Exception) {
-                    Log.e("PACI_DEBUG", "Error syncManagerData: ${e.message}", e)
-                }
-            }
-        }
+        _managerAppointments.value = emptyList()
+        _managerMedications.value = emptyList()
+        _managerExams.value = emptyList()
+        _managerPatientsCount.value = 0
+        _managerTreatmentsCount.value = 0
     }
 }
 

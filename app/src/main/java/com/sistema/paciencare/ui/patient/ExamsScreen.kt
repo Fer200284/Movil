@@ -186,9 +186,9 @@ fun ExamsScreen(patientViewModel: PatientViewModel, onBack: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Column(modifier = Modifier.weight(1f).verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (filteredExams.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
                             Text("No se encontraron resultados", color = Color(0xFF64748B), fontSize = 14.sp)
                         }
                     } else {
@@ -215,7 +215,7 @@ fun ExamDetailCard(exam: Exam, onDelete: () -> Unit) {
     val displayIndications = if (exam.indications.isNotBlank()) exam.indications else "Ayuno de 8 horas"
 
     Card(
-        modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(20.dp)),
+        modifier = Modifier.fillMaxWidth().wrapContentHeight().shadow(2.dp, RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {

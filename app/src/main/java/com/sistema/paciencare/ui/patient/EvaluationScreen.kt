@@ -265,26 +265,23 @@ fun EvaluationScreen(
 
                     Button(
                         onClick = {
-                            val avg = (r1 + r2 + r3 + r4 + r5) / 5.0f
-                            val dateNow = if (selectedConsultationDateMillis != null) {
-                                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(selectedConsultationDateMillis!!))
-                            } else {
-                                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-                            }
-                            val newEvaluation = EvaluationEntity(
-                                userEmail = user?.email ?: "paciente@paciencare.com",
-                                rating1 = r1,
-                                rating2 = r2,
-                                rating3 = r3,
-                                rating4 = r4,
-                                rating5 = r5,
-                                overallRating = avg,
-                                comments = comments.trim(),
-                                date = dateNow
+                            patientViewModel?.sendAnalyticsSurvey(
+                                r1 = r1,
+                                r2 = r2,
+                                r3 = r3,
+                                r4 = r4,
+                                r5 = r5,
+                                comments = comments,
+                                selectedMillis = selectedConsultationDateMillis,
+                                onComplete = { success ->
+                                    if (success) {
+                                        Toast.makeText(context, "¡Gracias por tu evaluación! Enviada exitosamente.", Toast.LENGTH_SHORT).show()
+                                        activeTab = 1
+                                    } else {
+                                        Toast.makeText(context, "No se pudo guardar en el servidor. Revisa tu conexión.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             )
-                            patientViewModel?.insertEvaluation(newEvaluation)
-                            Toast.makeText(context, "¡Gracias por tu evaluación!", Toast.LENGTH_SHORT).show()
-                            activeTab = 1 // Cambiar a la pestaña de historial enviado
                         },
                         modifier = Modifier.fillMaxWidth().height(54.dp).shadow(6.dp, RoundedCornerShape(14.dp)).background(colorAccent, RoundedCornerShape(14.dp)),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), shape = RoundedCornerShape(14.dp)

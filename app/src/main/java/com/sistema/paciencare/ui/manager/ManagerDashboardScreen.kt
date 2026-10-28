@@ -124,15 +124,15 @@ fun ManagerDashboardScreen(
         }
     }
 
-    val managerTreatmentsCount by (patientViewModel?.managerTreatmentsCount?.collectAsState() ?: remember { mutableIntStateOf(4) })
+    val managerTreatmentsCount by (patientViewModel?.managerTreatmentsCount?.collectAsState() ?: remember { mutableIntStateOf(0) })
 
-    // Métricas 100% reales derivadas de la BD local y Azure DB
+    // Métricas
     val totalAppointmentsCount = filteredAppointments.size
     val completedAppointmentsCount = filteredAppointments.count { it.status.equals("Realizada", ignoreCase = true) }
     val pendingAppointmentsCount = filteredAppointments.count { it.status.equals("Pendiente", ignoreCase = true) || it.status.equals("Confirmada", ignoreCase = true) }
     val cancelledAppointmentsCount = filteredAppointments.count { it.status.equals("Cancelada", ignoreCase = true) }
     val totalMedsTypes = medicationsEntities.size
-    val activeTreatmentsCount = if (managerTreatmentsCount > 0) managerTreatmentsCount else 4
+    val activeTreatmentsCount = managerTreatmentsCount
 
     // Métricas reales de Evaluaciones / Encuestas filtradas por fecha
     val evaluationsCount = filteredEvaluations.size
@@ -455,64 +455,6 @@ fun ManagerDashboardScreen(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = colorPrimary
-                                )
-                            }
-                        }
-
-                        // BOTÓN MANUAL GENERAR REPORTE
-                        Surface(
-                            onClick = {
-                                coroutineScope.launch {
-                                    isRefreshing = true
-                                    patientViewModel?.syncManagerData()
-                                    delay(400)
-                                    isRefreshing = false
-                                    val pName = if (!selectedSpecificDate.isNullOrEmpty()) "para la fecha $selectedSpecificDate" else "del período actual"
-                                    android.widget.Toast.makeText(context, "¡Reporte Gerencial generado $pName!", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF10B981)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Assignment,
-                                    contentDescription = "Generar Reporte",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    "Generar reporte",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-
-                        // BOTÓN MANUAL LIMPIAR REPORTE (SOLO ÍCONO PAPELERA)
-                        Surface(
-                            onClick = {
-                                selectedSpecificDate = null
-                                patientViewModel?.clearAllEvaluations()
-                                android.widget.Toast.makeText(context, "Reporte limpiado. Listo para nueva prueba.", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFEF4444).copy(alpha = 0.85f)
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Delete,
-                                    contentDescription = "Limpiar Reporte",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }

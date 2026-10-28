@@ -197,6 +197,9 @@ class PacienCareRepository(
     ) =
         patientDao.deleteEvaluation(evaluation)
 
+    suspend fun clearEvaluationsForUser(email: String) =
+        patientDao.clearEvaluationsForUser(email)
+
     suspend fun clearAllEvaluations() =
         patientDao.clearAllEvaluations()
 }
