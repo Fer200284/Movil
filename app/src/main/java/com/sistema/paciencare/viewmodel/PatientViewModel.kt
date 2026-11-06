@@ -248,15 +248,11 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
 
                         val atencionesDirect = repository.getRemoteDataSource().getAtencionesCronicas(token, pacienteId, userId).getOrNull() ?: emptyList()
 
-                        val atencionesDelPaciente = if (atencionesDirect.isNotEmpty()) {
-                            atencionesDirect
-                        } else {
-                            allAtenciones.filter { at ->
-                                at.matchesPacienteOrUser(pacienteId, userId) ||
-                                (at.idPacientePatologia != null && at.idPacientePatologia in pacientePatologiaIds) ||
-                                (at.pacienteIdDeep != null && (at.pacienteIdDeep == pacienteId || at.pacienteIdDeep == userId))
-                            }
-                        }
+                        val atencionesDelPaciente = (atencionesDirect + allAtenciones.filter { at ->
+                            at.matchesPacienteOrUser(pacienteId, userId) ||
+                            (at.idPacientePatologia != null && at.idPacientePatologia in pacientePatologiaIds) ||
+                            (at.pacienteIdDeep != null && (at.pacienteIdDeep == pacienteId || at.pacienteIdDeep == userId))
+                        }).distinctBy { it.id }
 
                         val atencionesIds = atencionesDelPaciente.map { it.id }.toSet()
 
@@ -333,8 +329,8 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
                             }
                         }
 
-                        repository.clearAppointmentsForUser(activeEmail)
                         if (apptsToInsert.isNotEmpty()) {
+                            repository.clearAppointmentsForUser(activeEmail)
                             apptsToInsert.forEach { repository.insertAppointment(it) }
                         }
 
@@ -342,10 +338,8 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
                         val examsToInsert = mutableListOf<ExamEntity>()
 
                         val safeSolicitudes = if (atencionesIds.isNotEmpty()) {
-                            allSolicitudesList.filter { 
-                                it.idAtencionCronico != null && it.idAtencionCronico in atencionesIds 
-                            }
-                        } else emptyList()
+                            allSolicitudesList.filter { it.idAtencionCronico == null || it.idAtencionCronico in atencionesIds }
+                        } else allSolicitudesList
 
                         val solicitudIds = safeSolicitudes.mapNotNull { it.id }.toSet()
 
@@ -467,17 +461,17 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
                             }
                         }
 
-                        repository.clearExamsForUser(activeEmail)
                         if (examsToInsert.isNotEmpty()) {
+                            repository.clearExamsForUser(activeEmail)
                             examsToInsert.forEach { repository.insertExam(it) }
                         }
 
                         // 3. Sincronizar Medicamentos
                         val medsToInsert = mutableListOf<MedicationEntity>()
 
-                        val tratamientosDelPaciente = tratamientosList.filter { 
-                            it.idAtencionCronico != null && atencionesIds.isNotEmpty() && it.idAtencionCronico in atencionesIds
-                        }
+                        val tratamientosDelPaciente = if (atencionesIds.isNotEmpty()) {
+                            tratamientosList.filter { it.idAtencionCronico == null || it.idAtencionCronico in atencionesIds }
+                        } else tratamientosList
                         val tratamientoIds = tratamientosDelPaciente.mapNotNull { it.id }.toSet()
 
                         val detallesDelPaciente = detallesList.filter { detalle ->
@@ -520,7 +514,13 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
                             }
                         }
 
-                        val filteredDirectMeds = directMedsList.filter { pacienteId != null && (it.pacienteId == pacienteId || it.pacienteId == userId) }
+                        val directMedsForPaciente = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            remoteDS.getMedicamentos(token, pacienteId).getOrNull() ?: emptyList()
+                        }
+                        val combinedDirectMeds = (directMedsList + directMedsForPaciente).distinctBy { it.id ?: it.nombre }
+                        val filteredDirectMeds = if (combinedDirectMeds.any { pacienteId != null && (it.pacienteId == pacienteId || it.pacienteId == userId) }) {
+                            combinedDirectMeds.filter { pacienteId != null && (it.pacienteId == pacienteId || it.pacienteId == userId) }
+                        } else combinedDirectMeds
                         filteredDirectMeds.forEachIndexed { index, directMed ->
                             val mIdInt = directMed.id ?: (index + 20000)
                             val mIdStr = mIdInt.toString()
@@ -565,8 +565,8 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
                             }
                         }
 
-                        repository.clearMedicationsForUser(activeEmail)
                         if (medsToInsert.isNotEmpty()) {
+                            repository.clearMedicationsForUser(activeEmail)
                             medsToInsert.forEach { repository.insertMedication(it) }
                         }
 
@@ -864,6 +864,25 @@ class PatientViewModel(private val repository: PacienCareRepository) : ViewModel
             }
         } catch (e: Exception) {
             Log.e("PACI_DEBUG", "Error sending analytics survey: ${e.message}", e)
+            onComplete?.invoke(false)
+        }
+    }
+
+    fun sendAnalyticsAtencion(
+        request: com.sistema.paciencare.data.remote.dto.AnalyticsAtencionRequest,
+        onComplete: ((Boolean) -> Unit)? = null
+    ) = viewModelScope.launch {
+        val token = repository.getSessionManager().getAccessToken()
+        if (token.isNullOrBlank()) {
+            onComplete?.invoke(false)
+            return@launch
+        }
+
+        try {
+            val result = repository.getRemoteDataSource().postAnalyticsAtencion(token, request)
+            onComplete?.invoke(result.isSuccess)
+        } catch (e: Exception) {
+            Log.e("PACI_DEBUG", "Error sending analytics atencion: ${e.message}", e)
             onComplete?.invoke(false)
         }
     }

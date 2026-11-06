@@ -324,20 +324,24 @@ class RemoteDataSource(
     // CONSULTAS EXACTAS DE MODELOS RELACIONALES DE LA API
     // =========================================================
 
+
+
     suspend fun getSolicitudesDeExamenesExact(token: String): Result<List<com.sistema.paciencare.data.remote.dto.SolicitudExamenDto>> {
-        return try {
-            val response = apiService.getSolicitudesDeExamenesExact("Bearer $token")
-            if (response.isSuccessful) Result.success(response.body() ?: emptyList())
-            else Result.failure(Exception("HTTP ${response.code()}"))
-        } catch (e: Exception) { Result.failure(e) }
+        val list = mutableListOf<com.sistema.paciencare.data.remote.dto.SolicitudExamenDto>()
+        runCatching {
+            val res1 = apiService.getSolicitudesDeExamenesExact("Bearer $token")
+            if (res1.isSuccessful && !res1.body().isNullOrEmpty()) list.addAll(res1.body()!!)
+        }
+        return Result.success(list.distinctBy { it.id })
     }
 
     suspend fun getResultadosExamenesExact(token: String): Result<List<com.sistema.paciencare.data.remote.dto.ResultadoExamenDto>> {
-        return try {
-            val response = apiService.getResultadosExamenesExact("Bearer $token")
-            if (response.isSuccessful) Result.success(response.body() ?: emptyList())
-            else Result.failure(Exception("HTTP ${response.code()}"))
-        } catch (e: Exception) { Result.failure(e) }
+        val list = mutableListOf<com.sistema.paciencare.data.remote.dto.ResultadoExamenDto>()
+        runCatching {
+            val res1 = apiService.getResultadosExamenesExact("Bearer $token")
+            if (res1.isSuccessful && !res1.body().isNullOrEmpty()) list.addAll(res1.body()!!)
+        }
+        return Result.success(list.distinctBy { it.id })
     }
 
     suspend fun getExamenesLaboratorioCatalogExact(token: String): Result<List<com.sistema.paciencare.data.remote.dto.ExamenLaboratorioDto>> {
@@ -349,47 +353,62 @@ class RemoteDataSource(
     }
 
     suspend fun getDetallesTratamientoExact(token: String): Result<List<com.sistema.paciencare.data.remote.dto.DetalleTratamientoDto>> {
-        return try {
-            val list = mutableListOf<com.sistema.paciencare.data.remote.dto.DetalleTratamientoDto>()
+        val list = mutableListOf<com.sistema.paciencare.data.remote.dto.DetalleTratamientoDto>()
+        runCatching {
             val res1 = apiService.getDetallesTratamientoExact("Bearer $token")
-            android.util.Log.d("PACI_DEBUG", "getDetallesTratamientoExact res1 code=${res1.code()} size=${res1.body()?.size}")
             if (res1.isSuccessful && !res1.body().isNullOrEmpty()) list.addAll(res1.body()!!)
-
-            val distinct = list.distinctBy { it.id }
-            android.util.Log.d("PACI_DEBUG", "getDetallesTratamientoExact Total distinct details: ${distinct.size}")
-            Result.success(distinct)
-        } catch (e: Exception) { 
-            android.util.Log.e("PACI_DEBUG", "getDetallesTratamientoExact Exception: ${e.message}", e)
-            Result.failure(e) 
         }
+        runCatching {
+            val res2 = apiService.getDetalleTratamientoUnderscore("Bearer $token")
+            if (res2.isSuccessful && !res2.body().isNullOrEmpty()) list.addAll(res2.body()!!)
+        }
+        runCatching {
+            val res3 = apiService.getCatalogosDetallesTratamientoExact("Bearer $token")
+            if (res3.isSuccessful && !res3.body().isNullOrEmpty()) list.addAll(res3.body()!!)
+        }
+        runCatching {
+            val res4 = apiService.getCatalogosDetalleTratamientoUnderscore("Bearer $token")
+            if (res4.isSuccessful && !res4.body().isNullOrEmpty()) list.addAll(res4.body()!!)
+        }
+        return Result.success(list.distinctBy { it.id })
     }
 
     suspend fun getMedicamentosCatalogExact(token: String): Result<List<com.sistema.paciencare.data.remote.dto.MedicamentoCatalogDto>> {
-        return try {
-            val list = mutableListOf<com.sistema.paciencare.data.remote.dto.MedicamentoCatalogDto>()
+        val list = mutableListOf<com.sistema.paciencare.data.remote.dto.MedicamentoCatalogDto>()
+        runCatching {
             val res1 = apiService.getMedicamentosCatalogExact("Bearer $token")
             if (res1.isSuccessful && !res1.body().isNullOrEmpty()) list.addAll(res1.body()!!)
-
-            val distinct = list.distinctBy { it.id }
-            android.util.Log.d("PACI_DEBUG", "getMedicamentosCatalogExact Total catalog: ${distinct.size}")
-            Result.success(distinct)
-        } catch (e: Exception) { Result.failure(e) }
+        }
+        runCatching {
+            val res2 = apiService.getCatalogosMedicamentosCatalogExact("Bearer $token")
+            if (res2.isSuccessful && !res2.body().isNullOrEmpty()) list.addAll(res2.body()!!)
+        }
+        return Result.success(list.distinctBy { it.id })
     }
 
     suspend fun getTratamientosExact(token: String): Result<List<com.sistema.paciencare.data.remote.dto.TratamientoDto>> {
-        return try {
-            val list = mutableListOf<com.sistema.paciencare.data.remote.dto.TratamientoDto>()
+        val list = mutableListOf<com.sistema.paciencare.data.remote.dto.TratamientoDto>()
+        runCatching {
             val res1 = apiService.getTratamientoExact("Bearer $token")
-            android.util.Log.d("PACI_DEBUG", "getTratamientosExact res1 code=${res1.code()} size=${res1.body()?.size}")
             if (res1.isSuccessful && !res1.body().isNullOrEmpty()) list.addAll(res1.body()!!)
-
-            val distinct = list.distinctBy { it.id }
-            android.util.Log.d("PACI_DEBUG", "getTratamientosExact Total distinct tratamientos: ${distinct.size}")
-            Result.success(distinct)
-        } catch (e: Exception) { 
-            android.util.Log.e("PACI_DEBUG", "getTratamientosExact Exception: ${e.message}", e)
-            Result.failure(e) 
         }
+        runCatching {
+            val res2 = apiService.getTratamientosAlt("Bearer $token")
+            if (res2.isSuccessful && !res2.body().isNullOrEmpty()) list.addAll(res2.body()!!)
+        }
+        runCatching {
+            val res3 = apiService.getCatalogosTratamientoExact("Bearer $token")
+            if (res3.isSuccessful && !res3.body().isNullOrEmpty()) list.addAll(res3.body()!!)
+        }
+        runCatching {
+            val res4 = apiService.getTratamientoCronicoAlt1("Bearer $token")
+            if (res4.isSuccessful && !res4.body().isNullOrEmpty()) list.addAll(res4.body()!!)
+        }
+        runCatching {
+            val res5 = apiService.getTratamientoCronicoAlt2("Bearer $token")
+            if (res5.isSuccessful && !res5.body().isNullOrEmpty()) list.addAll(res5.body()!!)
+        }
+        return Result.success(list.distinctBy { it.id })
     }
 
     suspend fun postAnalyticsEncuesta(
@@ -426,6 +445,35 @@ class RemoteDataSource(
             val res = apiService.deleteAnalyticsEncuesta("Bearer $token", mongoId)
             if (res.isSuccessful) {
                 Result.success(true)
+            } else {
+                Result.failure(Exception("HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun postAnalyticsAtencion(
+        token: String,
+        request: com.sistema.paciencare.data.remote.dto.AnalyticsAtencionRequest
+    ): Result<Boolean> {
+        return try {
+            val res = apiService.postAnalyticsAtencion("Bearer $token", request)
+            if (res.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAnalyticsAtenciones(token: String): Result<List<com.sistema.paciencare.data.remote.dto.AnalyticsAtencionRequest>> {
+        return try {
+            val res = apiService.getAnalyticsAtenciones("Bearer $token")
+            if (res.isSuccessful && res.body() != null) {
+                Result.success(res.body()!!)
             } else {
                 Result.failure(Exception("HTTP ${res.code()}"))
             }

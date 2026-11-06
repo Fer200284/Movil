@@ -199,9 +199,13 @@ fun EvaluationScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 val displayDate = remember(selectedConsultationDateMillis, isRefreshing) {
                                     if (selectedConsultationDateMillis != null) {
-                                        SimpleDateFormat("d 'de' MMMM yyyy", Locale("es", "ES")).format(Date(selectedConsultationDateMillis!!))
+                                        SimpleDateFormat("d 'de' MMMM yyyy", Locale("es", "ES")).apply {
+                                            timeZone = java.util.TimeZone.getTimeZone("UTC")
+                                        }.format(Date(selectedConsultationDateMillis!!))
                                     } else {
-                                        SimpleDateFormat("d 'de' MMMM yyyy", Locale("es", "ES")).format(Date())
+                                        SimpleDateFormat("d 'de' MMMM yyyy", Locale("es", "ES")).apply {
+                                            timeZone = java.util.TimeZone.getTimeZone("UTC")
+                                        }.format(Date())
                                     }
                                 }
                                 Text("Consulta del $displayDate", fontSize = 14.sp, color = colorPrimary, fontWeight = FontWeight.Bold)

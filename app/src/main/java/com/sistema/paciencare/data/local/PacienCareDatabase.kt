@@ -17,7 +17,7 @@ import com.sistema.paciencare.data.local.entities.MedicationEntity
         com.sistema.paciencare.data.local.entities.UserEntity::class,
         com.sistema.paciencare.data.local.entities.EvaluationEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class PacienCareDatabase : RoomDatabase() {

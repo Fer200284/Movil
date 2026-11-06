@@ -186,7 +186,7 @@ fun ExamsScreen(patientViewModel: PatientViewModel, onBack: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Column(modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (filteredExams.isEmpty()) {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
                             Text("No se encontraron resultados", color = Color(0xFF64748B), fontSize = 14.sp)
@@ -257,12 +257,17 @@ fun ExamDetailCard(exam: Exam, onDelete: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Requisito / Indicaciones (Ayuno)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
+                        .weight(1f, fill = false)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFFFEF3C7))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = displayIndications,
@@ -271,7 +276,7 @@ fun ExamDetailCard(exam: Exam, onDelete: () -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(exam.doctor, fontSize = 12.sp, color = Color(0xFF94A3B8))
             }
         }

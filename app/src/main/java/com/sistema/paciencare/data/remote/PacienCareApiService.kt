@@ -312,4 +312,15 @@ interface PacienCareApiService {
         @Header("Authorization") authHeader: String,
         @Path("id") mongoId: String
     ): Response<Unit>
+
+    @POST("analytics/atenciones/")
+    suspend fun postAnalyticsAtencion(
+        @Header("Authorization") authHeader: String,
+        @Body request: com.sistema.paciencare.data.remote.dto.AnalyticsAtencionRequest
+    ): Response<Map<String, Any>>
+
+    @GET("analytics/atenciones/")
+    suspend fun getAnalyticsAtenciones(
+        @Header("Authorization") authHeader: String
+    ): Response<List<com.sistema.paciencare.data.remote.dto.AnalyticsAtencionRequest>>
 }

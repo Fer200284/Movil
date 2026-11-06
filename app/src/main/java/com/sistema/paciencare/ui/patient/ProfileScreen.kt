@@ -18,7 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -190,7 +191,7 @@ fun ProfileScreen(patientViewModel: PatientViewModel, onBack: () -> Unit, onLogo
                     .padding(horizontal = 20.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Avatar más pequeño
+                // Avatar
                 Box(
                     modifier = Modifier
                         .size(70.dp)
@@ -199,11 +200,29 @@ fun ProfileScreen(patientViewModel: PatientViewModel, onBack: () -> Unit, onLogo
                         .border(2.dp, colorPrimary.copy(alpha = 0.3f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    val initials = if ((user?.name ?: "").length >= 2) user?.name?.take(2)?.uppercase() ?: "U" else "U"
+                    val initials = remember(user?.name) {
+                        val parts = (user?.name ?: "").trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+                        when {
+                            parts.size >= 2 -> "${parts.first().take(1)}${parts.last().take(1)}".uppercase()
+                            parts.size == 1 -> parts.first().take(2).uppercase()
+                            else -> "U"
+                        }
+                    }
                     Text(initials, fontSize = 24.sp, fontWeight = FontWeight.Black, color = colorPrimary)
                 }
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(user?.name ?: "Usuario", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                Text(
+                    text = user?.name ?: "Usuario",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B),
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 22.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text("Paciente registrado", fontSize = 12.sp, color = Color(0xFF64748B))
 
                 Spacer(modifier = Modifier.height(16.dp))
